@@ -1,0 +1,14 @@
+.env
+# IDEs
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+enterprise_env
+
+commands.md
+
+.logfire
