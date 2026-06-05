@@ -3,12 +3,48 @@ import os
 import sys
 import uuid
 import json
+import traceback
 import vertexai
+from dotenv import load_dotenv
 
 from typing import List
 from google.cloud import storage
 from qdrant_client import QdrantClient
 from qdrant_client.http import models
+from qdrant_client.http.exceptions import UnexpectedResponse
+
+
+load_dotenv()
+
+# Configure Logfire before importing local app modules to avoid init-order poisoning.
+try:
+    send_pref = os.getenv("LOGFIRE_SEND_TO_LOGFIRE", "if-token-present").strip().lower()
+    if send_pref in {"1", "true", "yes", "on"}:
+        send_to_logfire = True
+    elif send_pref in {"0", "false", "no", "off"}:
+        send_to_logfire = False
+    else:
+        send_to_logfire = "if-token-present"
+
+    token = os.getenv("LOGFIRE_TOKEN")
+    if token and send_to_logfire:
+        logfire.configure(
+            token=token,
+            service_name="enterprise-ingestion-service",
+            send_to_logfire=send_to_logfire,
+        )
+        print("[Logfire] Export enabled (token present).")
+    else:
+        logfire.configure(
+            service_name="enterprise-ingestion-service",
+            send_to_logfire=False,
+        )
+        if token:
+            print("[Logfire] Export disabled by LOGFIRE_SEND_TO_LOGFIRE.")
+        else:
+            print("[Logfire] Export disabled (LOGFIRE_TOKEN missing).")
+except Exception as exc:
+    print(f"Logfire disabled for ingestion: {exc}")
 
 
 # Import Local Modules
@@ -20,15 +56,15 @@ from app.ingestion.loaders.html import parse_html
 from app.ingestion.loaders.office import parse_office
 from app.ingestion.chunking.splitters import chunk_text
 
-logfire.configure(service_name="enterprise-ingestion-service")
-
+# Initialize Vertex AI for Embeddings
 vertexai.init(project=settings.PROJECT_ID, location=settings.LOCATION)
+
+# Initialize GCS Client
 storage_client = storage.Client(project=settings.PROJECT_ID)
+# Initialize Qdrant Client
 qdrant_client = QdrantClient(
     url=settings.QDRANT_URL,
-    api_key=settings.QDRANT_API_KEY
-)
-
+    api_key=settings.QDRANT_API_KEY)
 def upload_to_gcs(data,bucket_name: str,destination_blob_name: str,is_json: bool = False):
     """Uploads data to Google Cloud Storage."""
     bucket = storage_client.bucket(bucket_name)
@@ -78,10 +114,13 @@ def process_file(file_path:str,file_name:str,source_type:str):
                                                             "source_type": source_type,
                                                             "raw_gcs_path": f"gs://{settings.RAW_BUCKET}/{raw_gcs_path}"}))
                 qdrant_client.upsert(collection_name=settings.QDRANT_COLLECTION,
-                                    points=points)
+                                        points=points)
                 logfire.info(f"✨ Indexed {len(points)} points to Qdrant")
         except Exception as e:
+            # Logfire may scrub auth-like content; print traceback so local debugging keeps full details.
             logfire.error(f"💥 Failed to process {file_name}: {e}")
+            print(f"FAILED file={file_name} error_type={type(e).__name__} error={e!r}", file=sys.stderr)
+            traceback.print_exc()
 def run_universal_ingestion(base_dir: str, explicit_source_type: str = None, wipe: bool = False):
     """
     Automatically scans the directory.

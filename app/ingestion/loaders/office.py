@@ -1,4 +1,5 @@
 import logfire 
+import traceback
 from unstructured.partition.auto import partition
 
 def parse_office(file_path:str):
@@ -17,4 +18,6 @@ def parse_office(file_path:str):
             return full_text
         except Exception as e:
             logfire.error(f"Error parsing Office file {file_path}: {e}")
+            print(f"OFFICE_PARSE_FAILED path={file_path} error_type={type(e).__name__} error={e!r}")
+            traceback.print_exc()
             raise e
