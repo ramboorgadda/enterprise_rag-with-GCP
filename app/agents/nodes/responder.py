@@ -60,8 +60,8 @@ def generate_node(state: AgentState):
             response = llm.invoke(prompt)
             logfire.info("Response generated successfully.")
             return {
-                "finalanswer": response.content,
-                "status:": "Response generated successfully.",
+                "final_answer": response.content,
+                "status": "Response generated successfully.",
                 "messages": [{"role": "assistant", "content": response.content}]
             }
         except Exception as e:
