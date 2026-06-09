@@ -88,8 +88,9 @@ if prompt := st.chat_input("Ask about your documentation..."):
                         # Get backend URL from env, or default to local if not set
                         base_url = os.getenv("BACKEND_URL", "http://localhost:8000")
                         url = f"{base_url}/query"
-                        payload = {"q": prompt, "thread_id": st.session_state.session_id}
+                        payload = {"query": prompt, "thread_id": st.session_state.session_id}
                         response = requests.post(url, json=payload, timeout=60)
+                        response.raise_for_status()
                         data = response.json()
                     
                     # Show Reasoning Steps from Backend
@@ -111,7 +112,7 @@ if prompt := st.chat_input("Ask about your documentation..."):
                 except Exception as e:
                     logfire.error(f"❌ UI-Backend Connection Failed: {e}")
                     status.update(label="❌ Connection Failed", state="error")
-                    st.error("Backend Offline.")
+                    st.error(f"Backend request failed: {e}")
                     st.stop()
 
             # Final Answer Streaming

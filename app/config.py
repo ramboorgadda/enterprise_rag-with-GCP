@@ -6,6 +6,8 @@ from dotenv import load_dotenv
 ROOT_DIR = Path(__file__).resolve().parents[1]
 load_dotenv(dotenv_path=ROOT_DIR / ".env", override=True)
 
+
+
 class Settings:
     PROJECT_ID = os.getenv("PROJECT_ID", "enterprise-rag-497423")
     LOCATION = os.getenv("LOCATION", "us-central1")
@@ -17,6 +19,7 @@ class Settings:
     QDRANT_URL = os.getenv("QDRANT_CLUSTER_ENDPOINT")
     QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
     QDRANT_COLLECTION = "enterprise_rag"
+    RETRIEVAL_TOP_K = 5
     
     # --- REASONING ENGINE (GROQ) ---
     GROQ_API_KEY = os.getenv("GROQ_API_KEY")
