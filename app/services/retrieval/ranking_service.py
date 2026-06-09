@@ -36,17 +36,30 @@ def rerank_documents(query: str, documents: list[dict], top_k: int = 5) ->list[s
         passages =[
             {"id": i, "text":doc} for i, doc in enumerate(documents)
         ]
-        request = RerankRequest(query=query, passages=passages, top_k=top_k)
+        request = RerankRequest(query=query, passages=passages)
         results = ranker.rerank(request)
         reranked_docs = []
         for res in results[:top_k]:
-            idx = res.passage.id
-            score = res.score
-            reranked_docs.append(res.passage.text)
-            logfire.info(f"🔍 Reranked Doc ID {idx} with score {score:.4f}")
+            if isinstance(res, dict):
+                passage = res.get("passage") or {}
+                idx = passage.get("id")
+                score = res.get("score", 0.0)
+                text = passage.get("text")
+            else:
+                passage = getattr(res, "passage", None)
+                idx = getattr(passage, "id", None)
+                score = getattr(res, "score", 0.0)
+                text = getattr(passage, "text", None)
+
+            if text:
+                reranked_docs.append(text)
+                logfire.info(f"🔍 Reranked Doc ID {idx} with score {score:.4f}")
+
+        if not reranked_docs:
+            return documents[:top_k]
     except Exception as e:
         logfire.error(f"❌ Error during reranking: {e}")
-        return documents
+        return documents[:top_k]
     end_time = time.time()
     logfire.info(f"⏱️ Reranking completed in {end_time - start_time:.2f} seconds")
     return reranked_docs

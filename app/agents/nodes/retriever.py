@@ -19,7 +19,7 @@ def retrieve_node(state: AgentState):
     else:
         logfire.info("Performing technical retrieval.")
         retrieved_docs = search_enterprise_knowledge(query, settings.RETRIEVAL_TOP_K)
-        ranked_docs = rerank_documents(retrieved_docs, query, top_k=5)
+        ranked_docs = rerank_documents(query, retrieved_docs, top_k=5)
         state["documents"] = ranked_docs
         formatted_doc = [f"CONTENT: {doc}" for doc in ranked_docs]
         return {

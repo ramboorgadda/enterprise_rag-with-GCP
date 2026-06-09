@@ -1,27 +1,10 @@
 import os
+from pathlib import Path
 from urllib.parse import urlparse, urlunparse
 from dotenv import load_dotenv
 
-load_dotenv()
-
-
-def _normalize_qdrant_url(raw_url: str) -> str:
-    url = (raw_url or "").strip().rstrip("/")
-    if not url:
-        return ""
-
-    parsed = urlparse(url)
-    # Qdrant Cloud REST commonly expects explicit :6333.
-    if parsed.scheme in {"http", "https"} and parsed.hostname and parsed.port is None and "cloud.qdrant.io" in parsed.hostname:
-        netloc = f"{parsed.hostname}:6333"
-        if parsed.username and parsed.password:
-            netloc = f"{parsed.username}:{parsed.password}@{netloc}"
-        elif parsed.username:
-            netloc = f"{parsed.username}@{netloc}"
-        parsed = parsed._replace(netloc=netloc)
-
-    return urlunparse(parsed).rstrip("/")
-
+ROOT_DIR = Path(__file__).resolve().parents[1]
+load_dotenv(dotenv_path=ROOT_DIR / ".env", override=True)
 
 class Settings:
     PROJECT_ID = os.getenv("PROJECT_ID", "enterprise-rag-497423")
@@ -31,14 +14,10 @@ class Settings:
     RAW_BUCKET = os.getenv("GCP_RAW_BUCKET", "enterprise-rag-raw-1234")
     PROCESSED_BUCKET = os.getenv("GCP_PROCESSED_BUCKET", "enterprise-rag-processed-1234")
 
-    QDRANT_URL = _normalize_qdrant_url(
-        os.getenv("QDRANT_CLUSTER_ENDPOINT")
-        or os.getenv("QDRANT_URL")
-        or ""
-    )
+    QDRANT_URL = os.getenv("QDRANT_CLUSTER_ENDPOINT")
     QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
     QDRANT_COLLECTION = "enterprise_rag"
-
+    
     # --- REASONING ENGINE (GROQ) ---
     GROQ_API_KEY = os.getenv("GROQ_API_KEY")
     GROQ_MODEL = "llama-3.3-70b-versatile"

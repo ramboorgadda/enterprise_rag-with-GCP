@@ -1,8 +1,7 @@
 import logfire
 from qdrant_client import QdrantClient
-from qdrant_client.http import models
 from app.config import settings
-from app.services.retrieval.embedding import get_embedding_model,embed_query
+from app.services.retrieval.embedding import embed_query
 
 client = QdrantClient(url=settings.QDRANT_URL, 
                     api_key=settings.QDRANT_API_KEY)
@@ -19,17 +18,25 @@ def search_enterprise_knowledge(query: str, top_k: int = 8):
     """
     try:
         query_vector = embed_query(query)
-        response =client.query_points(collection_name=settings.QDRANT_COLLECTION,
-                            query_vector=query_vector,
-                            limit=top_k,
-                            with_payload=True)
+        response = client.query_points(
+            collection_name=settings.QDRANT_COLLECTION,
+            query=query_vector,
+            limit=top_k,
+            with_payload=True,
+        )
         results = []
-        for res in response.results.points:
-            payload = res.payload
+        points = getattr(response, "points", None)
+        if points is None and getattr(response, "result", None) is not None:
+            points = getattr(response.result, "points", [])
+        if points is None:
+            points = []
+
+        for res in points:
+            payload = getattr(res, "payload", {}) or {}
             results.append({
                 "content": payload.get("text", ""),
                 "source": payload.get("source", "Unknown"),
-                "score": res.score
+                "score": getattr(res, "score", 0.0)
             })
         return results
     except Exception as e:

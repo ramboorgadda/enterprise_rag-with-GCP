@@ -3,9 +3,16 @@ from langchain_groq import ChatGroq
 from app.agents.state import AgentState
 from app.config import settings
 
-llm = ChatGroq(model=settings.GROQ_MODEL, 
-            api_key=settings.GROQ_API_KEY,
-            temperature=0.1)
+def _get_llm() -> ChatGroq | None:
+    key = (settings.GROQ_API_KEY or "").strip()
+    if not key:
+        return None
+    return ChatGroq(
+        model=settings.GROQ_MODEL,
+        api_key=key,
+        temperature=0.1,
+    )
+
 
 def generate_node(state: AgentState):
     """
@@ -13,6 +20,16 @@ def generate_node(state: AgentState):
 
     """
     query = state["current_query"]
+    llm = _get_llm()
+    if llm is None:
+        msg = "GROQ_API_KEY is missing. Set it in your .env to enable response generation."
+        logfire.error(msg)
+        return {
+            "final_answer": "I cannot generate a response right now because GROQ_API_KEY is not configured.",
+            "status": msg,
+            "messages": [{"role": "assistant", "content": "Please configure GROQ_API_KEY and retry."}],
+        }
+
     # Construct the prompt for GROQ based on the agent's state
     history=f""
     for msg in state["messages"][:-1]:
@@ -37,8 +54,9 @@ def generate_node(state: AgentState):
             max_context_chars = 25000
             full_context = ""
             for doc in state["documents"]:
-                if len(full_context) + len(doc["content"]) <= max_context_chars:
-                    full_context += doc + "\n\n"
+                text = doc.get("content", "") if isinstance(doc, dict) else str(doc)
+                if len(full_context) + len(text) <= max_context_chars:
+                    full_context += text + "\n\n"
                 else:
                     logfire.warning("Context truncated to fit Groq TPM limits.")
                     break
@@ -65,5 +83,9 @@ def generate_node(state: AgentState):
                 "messages": [{"role": "assistant", "content": response.content}]
             }
         except Exception as e:
-            logfire.error(f"Error during response generation: {e}")
-            raise e
+            logfire.warning(f"LLM unavailable during response generation, using retrieval fallback: {e}")
+            return {
+                "final_answer": "I could not generate a response right now. Please try again later.",
+                "status": "Response generation failed.",
+                "messages": [{"role": "assistant", "content": "I could not generate a response right now. Please try again later."}],
+            }

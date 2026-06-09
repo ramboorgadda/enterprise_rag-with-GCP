@@ -3,14 +3,36 @@ import os
 from dotenv import load_dotenv
 
 load_dotenv()
-logfire.configure(token=os.getenv("LOGFIRE_TOKEN"))
+
+
+def configure_logfire() -> None:
+    enable_remote = (os.getenv("LOGFIRE_ENABLE_REMOTE") or "false").strip().lower() == "true"
+    token = (os.getenv("LOGFIRE_TOKEN") or "").strip()
+    placeholder = token.lower() in {"", "your-logfire-token", "none", "null"}
+
+    if not enable_remote:
+        logfire.configure(send_to_logfire=False)
+        return
+
+    if placeholder:
+        logfire.configure(send_to_logfire=False)
+        return
+
+    try:
+        logfire.configure(token=token)
+    except Exception:
+        # Keep the API running locally even when the token is invalid.
+        logfire.configure(send_to_logfire=False)
+
+
+configure_logfire()
 from fastapi import FastAPI,Response
 from app.agents.graph import rag_agent
 
 from pydantic import BaseModel
 from typing import Optional
 
-app = FastAPI("Enterprise Agentic RAG API")
+app = FastAPI(title="Enterprise Agentic RAG API")
 
 class QueryRequest(BaseModel):
     query: str
