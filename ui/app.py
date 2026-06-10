@@ -15,11 +15,25 @@ load_dotenv(dotenv_path=env_path)
 # Initialize Logfire
 try:
     token = os.getenv("LOGFIRE_TOKEN")
-    if not token:
-        print("ERROR: LOGFIRE_TOKEN is empty or None!")
-    logfire.configure(token=token)
-    # logfire.instrument_requests() # Disabled due to OpenTelemetry bug on Windows: MeterProvider.get_meter() got multiple values for argument 'version'
-    LOGFIRE_STATUS = "Connected & Tracing"
+    remote_flag = (os.getenv("LOGFIRE_ENABLE_REMOTE") or os.getenv("LOGFIRE_SEND_TO_LOGFIRE") or "false").strip().lower()
+    enable_remote = remote_flag in {"1", "true", "yes", "on"}
+    if not enable_remote:
+        logfire.configure(send_to_logfire=False)
+        LOGFIRE_STATUS = "Local only"
+    elif not token:
+        logfire.configure(send_to_logfire=False)
+        LOGFIRE_STATUS = "Standby (missing token)"
+    else:
+        logfire.configure(token=token)
+        # Optional distributed trace context propagation.
+        # Keep this opt-in because some Windows environments hit OpenTelemetry conflicts.
+        requests_instrument = (os.getenv("LOGFIRE_INSTRUMENT_REQUESTS") or "false").strip().lower() in {"1", "true", "yes", "on"}
+        if requests_instrument:
+            try:
+                logfire.instrument_requests()
+            except Exception:
+                pass
+        LOGFIRE_STATUS = "Connected & Tracing"
 except Exception as e:
     print(f"Logfire Init Error in UI: {e}")
     LOGFIRE_STATUS = f"Standby (Error: {e})"

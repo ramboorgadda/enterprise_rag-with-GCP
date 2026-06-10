@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+enterprise_env/
+.venv/
+
+# VCS
+.git/
+.gitignore
+
+# Local config and logs
+.env
+env-vars.yaml
+.logfire/
+*.log
+
+# Data and docs not required for API image
+DATA/
+DOCS/
+
+# Editor and OS
+.vscode/
+.DS_Store
+Thumbs.db
