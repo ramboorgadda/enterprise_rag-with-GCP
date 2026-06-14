@@ -1,4 +1,4 @@
-from app.guardrails import chat, COLANG_EXP2, YAML_BASE
+from app.guardrails.guardrails import chat, COLANG_EXP2, YAML_BASE
 from nemoguardrails import RailsConfig, LLMRails
 import logfire
 import os
