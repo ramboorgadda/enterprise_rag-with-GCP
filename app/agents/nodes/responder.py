@@ -1,18 +1,18 @@
 import logfire
 from langchain_groq import ChatGroq
 from app.agents.state import AgentState
+from app.gateway import portkey_client, extract_cache_status
 from app.config import settings
 
-def _get_llm() -> ChatGroq | None:
-    key = (settings.GROQ_API_KEY or "").strip()
-    if not key:
-        return None
-    return ChatGroq(
-        model=settings.GROQ_MODEL,
-        api_key=key,
-        temperature=0.1,
-    )
-
+# def _get_llm() -> ChatGroq | None:
+#    key = (settings.GROQ_API_KEY or "").strip()
+#    if not key:
+#        return None
+#    return ChatGroq(
+#        model=settings.GROQ_MODEL,
+#        api_key=key,
+#        temperature=0.1,
+#    )
 
 def generate_node(state: AgentState):
     """
@@ -20,16 +20,6 @@ def generate_node(state: AgentState):
 
     """
     query = state["current_query"]
-    llm = _get_llm()
-    if llm is None:
-        msg = "GROQ_API_KEY is missing. Set it in your .env to enable response generation."
-        logfire.error(msg)
-        return {
-            "final_answer": "I cannot generate a response right now because GROQ_API_KEY is not configured.",
-            "status": msg,
-            "messages": [{"role": "assistant", "content": "Please configure GROQ_API_KEY and retry."}],
-        }
-
     # Construct the prompt for GROQ based on the agent's state
     history=f""
     for msg in state["messages"][:-1]:
@@ -75,12 +65,26 @@ def generate_node(state: AgentState):
         """
     with logfire.span("🧠 Generate Node - Synthesizing Response"):
         try:
-            response = llm.invoke(prompt)
+            response = portkey_client.chat.completions.create(
+                messages=[{"role": "user", "content": prompt}],
+                temperature = 0.1
+            )
             logfire.info("Response generated successfully.")
+            content = response.choices[0].message.content
+            cache_status = extract_cache_status(response)
+            is_cache_hit = cache_status == "HIT"
+            if is_cache_hit:
+                logfire.info("⚡ Gateway Cache Hit — response served from Portkey cache.")
+                plan_update = state["plan"] + ["Cache: Hit ⚡"]
+                status = "Cache hit — instant response."
+            else:
+                logfire.info("✅ Response synthesised via LLM.")
+                plan_update = state["plan"]
+                status = "Response generated."
             return {
-                "final_answer": response.content,
-                "status": "Response generated successfully.",
-                "messages": [{"role": "assistant", "content": response.content}]
+                "final_answer": content,
+                "status": status,
+                "messages": [{"role": "assistant", "content": content}]
             }
         except Exception as e:
             logfire.warning(f"LLM unavailable during response generation, using retrieval fallback: {e}")

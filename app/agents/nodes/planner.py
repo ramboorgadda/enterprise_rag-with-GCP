@@ -1,14 +1,15 @@
 from langchain_groq import ChatGroq
 from app.agents.state import AgentState
+from app.gateway import get_langchain_llm
 from app.config import settings
 import logfire
 
-
-def _get_llm() -> ChatGroq | None:
-    key = (settings.GROQ_API_KEY or "").strip()
-    if not key:
-        return None
-    return ChatGroq(model=settings.GROQ_MODEL, api_key=key)
+llm = get_langchain_llm(feature="planner")
+# def _get_llm() -> ChatGroq | None:
+#     key = (settings.GROQ_API_KEY or "").strip()
+#     if not key:
+#         return None
+#     return ChatGroq(model=settings.GROQ_MODEL, api_key=key)
 
 def planner_node(state: AgentState):
     """
@@ -21,8 +22,8 @@ def planner_node(state: AgentState):
 
     """
         # Construct the prompt for GROQ based on the agent's state
-    llm = _get_llm()
-    if llm is None:
+    planner_llm = llm
+    if planner_llm is None:
         user_message = state["messages"][-1]["content"] if state["messages"] else ""
         return {
             "current_query": user_message,
@@ -54,7 +55,7 @@ def planner_node(state: AgentState):
 
     try:
         with logfire.span("🧠 Planner Node - Generating Response", prompt=prompt):
-            decision_raw = llm.invoke(prompt)
+            decision_raw = planner_llm.invoke(prompt)
             decision = (getattr(decision_raw, "content", str(decision_raw)) or "").strip()
             logfire.info(f"Intent identified: {decision}")
     except Exception as e:
