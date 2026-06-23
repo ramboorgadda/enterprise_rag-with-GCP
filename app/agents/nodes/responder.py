@@ -1,8 +1,6 @@
 import logfire
-from langchain_groq import ChatGroq
 from app.agents.state import AgentState
 from app.gateway import portkey_client, extract_cache_status
-from app.config import settings
 
 # def _get_llm() -> ChatGroq | None:
 #    key = (settings.GROQ_API_KEY or "").strip()
@@ -20,6 +18,7 @@ def generate_node(state: AgentState):
 
     """
     query = state["current_query"]
+    logfire.info(f"Responder node started. query={query}")
     # Construct the prompt for GROQ based on the agent's state
     history=f""
     for msg in state["messages"][:-1]:
@@ -28,7 +27,7 @@ def generate_node(state: AgentState):
         history += f"{role}: {content}\n"
     user_message = state["messages"][-1]["content"] if state["messages"] else ""
     if query == "CONVERSATIONAL":
-            logfire.info("Handling conversational query using memory only.")
+            logfire.info("Responder mode: conversational (memory only).")
             prompt = f"""
             You are a friendly and helpful Enterprise AI Assistant.
             Answer the user's latest message using the CONVERSATION HISTORY below.
@@ -40,7 +39,7 @@ def generate_node(state: AgentState):
             "{user_message}"
             """
     else:
-            logfire.info("Generating technical RAG response.")
+            logfire.info("Responder mode: technical RAG.")
             max_context_chars = 25000
             full_context = ""
             for doc in state["documents"]:
@@ -63,7 +62,7 @@ def generate_node(state: AgentState):
         USER QUESTION:
         "{user_message}"
         """
-    with logfire.span("🧠 Generate Node - Synthesizing Response"):
+    with logfire.span("🧠 Responder Node - Synthesizing Response", query=query, docs_count=len(state.get("documents", []))):
         try:
             response = portkey_client.chat.completions.create(
                 messages=[{"role": "user", "content": prompt}],
@@ -84,6 +83,7 @@ def generate_node(state: AgentState):
             return {
                 "final_answer": content,
                 "status": status,
+                "plan": plan_update,
                 "messages": [{"role": "assistant", "content": content}]
             }
         except Exception as e:

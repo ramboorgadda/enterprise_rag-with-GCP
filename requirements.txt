@@ -56,3 +56,7 @@ loguru                      # Enhanced logging for Python
 
 # ----- LLM Gateways & CONNECTORS -----
 portkey_ai
+
+# ---- Evaluation Frameworks -----
+ragas
+deepeval
