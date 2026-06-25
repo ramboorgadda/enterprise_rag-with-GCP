@@ -10,7 +10,8 @@ Thumbs.db
 
 enterprise_env
 enterprise_env311
-
+enterprise_eval_env311
+.venv
 _pycache_
 commands.md
 
