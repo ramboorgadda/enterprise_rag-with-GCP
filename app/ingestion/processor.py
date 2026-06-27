@@ -12,7 +12,10 @@ from google.cloud import storage
 from qdrant_client import QdrantClient
 from qdrant_client.http import models
 from qdrant_client.http.exceptions import UnexpectedResponse
+from fastapi import FastAPI, Request, BackgroundTasks
+import tempfile
 
+fastapi = FastAPI()
 
 load_dotenv()
 
@@ -69,15 +72,19 @@ def upload_to_gcs(data,bucket_name: str,destination_blob_name: str,is_json: bool
     """Uploads data to Google Cloud Storage."""
     bucket = storage_client.bucket(bucket_name)
     blob = bucket.blob(destination_blob_name)
-    blob.upload_from_string(json.dumps(data) if is_json else data)
+    if is_json:
+        blob.upload_from_string(json.dumps(data), content_type="application/json")
+    else:
+        blob.upload_from_filename(data)
     logfire.info(f"Data uploaded to GCS at {destination_blob_name}")
     
-def process_file(file_path:str,file_name:str,source_type:str):
+def process_file(file_path:str,file_name:str,source_type:str,skip_raw_upload: bool = False):
     """Main function to process a file based on its type."""
     with logfire.span("🚀 Processing File",file=file_name,source=source_type):
         try:
             raw_gcs_path = f"{source_type}/{file_name}"
-            upload_to_gcs(file_path, settings.RAW_BUCKET, raw_gcs_path)
+            if not skip_raw_upload:
+                upload_to_gcs(file_path, settings.RAW_BUCKET, raw_gcs_path)
             ext = file_name.lower().split(".")[-1]
             if ext == "pdf":
                 text = parse_pdf(file_path)
@@ -174,6 +181,46 @@ def process_directory(dir_path: str, source_type: str):
             file_path = os.path.join(dir_path, filename)
             process_file(file_path, filename, source_type)
 
+@fastapi.post("/")
+async def eventarc_webhook(request: Request, background_tasks: BackgroundTasks):
+    """
+    Entry point for Google Cloud Eventarc triggers.
+    """
+    try:
+        data = await request.json()
+        bucket =data.get("bucket")
+        name = data.get("name")
+        if not bucket or not name:
+            logfire.error("❌ Invalid Eventarc payload")
+            return {"status": "error", "message": "Invalid payload"}, 400
+
+        logfire.info(f"📡 Eventarc Triggered: {name} in {bucket}")
+        if bucket != settings.RAW_BUCKET:
+            logfire.warning(f"🛑 Ignoring event from unauthorized bucket: {bucket}")
+            return {"status": "ignored"}
+        parts = name.split("/")
+        source_type =parts[0] if len(parts) > 0 else "general"
+        filename = parts[-1]
+        background_tasks.add_task(process_from_gcs, bucket, name, filename, source_type)
+        
+        return {"status": "accepted", "file": name}
+    except Exception as e:
+        logfire.error(f"💥 Failed to handle Eventarc webhook: {e}")
+        return {"status": "error", "message": str(e)}, 500
+async def process_from_gcs(bucket_name: str, blob_name: str, filename: str, source_type: str):
+    """Downloads a file from GCS and processes it."""
+    with tempfile.NamedTemporaryFile(delete=False, suffix=f"_{filename}") as temp_file:
+        try:
+            bucket = storage_client.bucket(bucket_name)
+            blob = bucket.blob(blob_name)
+            blob.download_to_filename(temp_file.name)
+            
+            # CRITICAL: We set skip_raw_upload=True to prevent the Infinite Loop!
+            process_file(temp_file.name, filename, source_type, skip_raw_upload=True)
+            
+        finally:
+            if os.path.exists(temp_file.name):
+                os.remove(temp_file.name)
 if __name__ == "__main__":
     # Usage: python -m app.ingestion.processor [dir_path] [source_type] [--wipe]
     wipe_requested = "--wipe" in sys.argv
