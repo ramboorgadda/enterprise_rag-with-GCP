@@ -32,9 +32,37 @@ workflow.add_conditional_edges("planner",
 workflow.add_edge("retriever", "responder")
 workflow.add_edge("responder", END)
 
+# HYBRID MENORY UPGRADE
+
+def get_checkpointer():
+    """Returns a persistent Postgres checkpointer in Cloud/Production mode,
+    and falls back to in-memory checkpointer in Local mode."""
+    
+    from app.config import settings
+    if settings.LOCAL_MODE:
+        from langgraph.checkpoint.memory import MemorySaver
+        print("⚠️ Running in Local Mode: Using in-memory checkpointer (no persistence).")
+        return MemorySaver()
+    try:
+        from langgraph.checkpoint.postgres import PostgresSaver
+        from psycopg_pool import ConnectionPool
+        conninfo = f"postgresql://{settings.DB_USER}:{settings.DB_PASS}@/{settings.DB_NAME}?host=/cloudsql/{settings.DB_CONNECTION_NAME}"
+        # Initialize the pool
+        pool = ConnectionPool(conninfo=conninfo, max_size=5)
+        
+        with pool.connection() as conn:
+            # Test the connection
+            checkpointer = PostgresSaver(conn)
+            checkpointer.setup()
+        print("🐘 Using Persistent PostgresSaver (Cloud SQL Pool)")
+        return PostgresSaver(pool)
+    except Exception as e:
+        print(f"⚠️ Failed to initialize PostgresSaver: {e}. Falling back to in-memory checkpointer.")
+        from langgraph.checkpoint.memory import MemorySaver
+        return MemorySaver()
 # --- MEMORY UPGRADE ---
 # MemorySaver allows the agent to remember conversations based on 'thread_id'
-checkpointer = MemorySaver()
+checkpointer = get_checkpointer()
 
 # 4. Compile the Graph with Memory
 rag_agent = workflow.compile(checkpointer=checkpointer)
