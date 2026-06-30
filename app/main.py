@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 import asyncio
 from typing import Optional
 from langchain_groq import ChatGroq
+from app.services.gcp.redis_semantic_cache import check_cache, update_cache
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
@@ -157,8 +158,20 @@ def query(request: QueryRequest):
                 "sources": []
             }
         
-        log_info(f"Query passed guardrails, invoking RAG agent: {q}")
-        response = rag_agent.invoke(initial_state, config=config)
+        log_info(f"Query passed guardrails, checking the cache before hitting the RAG Agent: {q}")
+        cached_response = check_cache(q)
+        if cached_response:
+            return {
+                "question": q,
+                "answer": cached_response,
+                "thought_process": ["Retrieved from cache."],
+                "status": "Success",
+                "sources": []
+            }
+        else:
+            log_info(f"No cache hit for query: {q}. Invoking RAG agent.")    
+            response = rag_agent.invoke(initial_state, config=config)
+            update_cache(q, response.get("final_answer"))
         return {
             "question": q,
             "answer": response.get("final_answer"),

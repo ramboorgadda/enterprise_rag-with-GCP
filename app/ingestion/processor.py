@@ -170,7 +170,7 @@ def run_universal_ingestion(base_dir: str, explicit_source_type: str = None, wip
                 logfire.info(f"📂 Processing subdirectory {dir_path} as '{source_type}'")
                 process_directory(dir_path, source_type)
 def process_directory(dir_path: str, source_type: str):
-    """
+    """ 
     Processes all files in a specific directory.
     """
     with logfire.span("📁 Scanning Directory", path=dir_path, source=source_type):

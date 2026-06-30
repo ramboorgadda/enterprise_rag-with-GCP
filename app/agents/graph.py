@@ -43,6 +43,10 @@ def get_checkpointer():
         from langgraph.checkpoint.memory import MemorySaver
         print("⚠️ Running in Local Mode: Using in-memory checkpointer (no persistence).")
         return MemorySaver()
+    if not settings.DB_CONNECTION_NAME:
+        from langgraph.checkpoint.memory import MemorySaver
+        print("⚠️ DB_CONNECTION_NAME is missing: using in-memory checkpointer.")
+        return MemorySaver()
     try:
         from langgraph.checkpoint.postgres import PostgresSaver
         from psycopg_pool import ConnectionPool
