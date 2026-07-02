@@ -1,15 +1,15 @@
 steps:
   # 1. Build Backend Image
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'us-central1-docker.pkg.dev/${PROJECT_ID}/enterprise-rag-repo/backend:latest', '-f', 'docker/backend.Dockerfile', '.']
+    args: ['build', '-t', 'us-central1-docker.pkg.dev/${PROJECT_ID}/enterprise-rag-repo/backend:latest', '-f', 'Docker/backend.Dockerfile', '.']
 
   # 2. Build UI Image
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'us-central1-docker.pkg.dev/${PROJECT_ID}/enterprise-rag-repo/ui:latest', '-f', 'docker/ui.Dockerfile', '.']
+    args: ['build', '-t', 'us-central1-docker.pkg.dev/${PROJECT_ID}/enterprise-rag-repo/ui:latest', '-f', 'Docker/ui.Dockerfile', '.']
 
   # 3. Build Ingestion Worker Image
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'us-central1-docker.pkg.dev/${PROJECT_ID}/enterprise-rag-repo/ingestion:latest', '-f', 'docker/ingestion.Dockerfile', '.']
+    args: ['build', '-t', 'us-central1-docker.pkg.dev/${PROJECT_ID}/enterprise-rag-repo/ingestion:latest', '-f', 'Docker/ingestion.Dockerfile', '.']
 
 # Push the images to Artifact Registry
 images:
