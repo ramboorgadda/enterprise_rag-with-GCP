@@ -1,5 +1,4 @@
 from app.guardrails.guardrails import chat, COLANG_EXP2, YAML_BASE
-from nemoguardrails import RailsConfig, LLMRails
 import logfire
 import os
 from pathlib import Path
@@ -76,6 +75,14 @@ from app.agents.graph import rag_agent
 from pydantic import BaseModel
 from typing import Optional
 
+try:
+    from nemoguardrails import RailsConfig, LLMRails
+    GUARDRAILS_AVAILABLE = True
+except ModuleNotFoundError:
+    RailsConfig = None
+    LLMRails = None
+    GUARDRAILS_AVAILABLE = False
+
 
 # Load .env from project root (one level up from notebooks/)
 load_dotenv(dotenv_path="../.env")
@@ -132,31 +139,34 @@ def query(request: QueryRequest):
     }
     config = {"configurable": {"thread_id": thread_id}}
     try:
-        config_exp2 = RailsConfig.from_content(colang_content=COLANG_EXP2, yaml_content=YAML_BASE)
-        rails_exp2 = LLMRails(config=config_exp2, llm=llm)
+        if GUARDRAILS_AVAILABLE:
+            config_exp2 = RailsConfig.from_content(colang_content=COLANG_EXP2, yaml_content=YAML_BASE)
+            rails_exp2 = LLMRails(config=config_exp2, llm=llm)
 
-        guardrail_response = chat(rails_exp2, q)
-        response_str = str(guardrail_response.get("content", ""))
-        log_info(f"Guardrail response: {response_str[:200]}")
-        
-        # Check if the response is a guardrail block (any of the refusal messages)
-        block_indicators = [
-            "I'm an Enterprise IT Assistant focused on",
-            "I maintain consistent guidelines",
-            "I can't assist with unauthorised access"
-        ]
-        
-        is_blocked = any(indicator in response_str for indicator in block_indicators) if response_str else False
-        
-        if is_blocked:
-            log_info(f"Query blocked by guardrail: {q}")
-            return {
-                "question": q,
-                "answer": response_str,
-                "thought_process": ["Blocked by Guardrail."],
-                "status": "Blocked by Guardrail",
-                "sources": []
-            }
+            guardrail_response = chat(rails_exp2, q)
+            response_str = str(guardrail_response.get("content", ""))
+            log_info(f"Guardrail response: {response_str[:200]}")
+
+            # Check if the response is a guardrail block (any of the refusal messages)
+            block_indicators = [
+                "I'm an Enterprise IT Assistant focused on",
+                "I maintain consistent guidelines",
+                "I can't assist with unauthorised access"
+            ]
+
+            is_blocked = any(indicator in response_str for indicator in block_indicators) if response_str else False
+
+            if is_blocked:
+                log_info(f"Query blocked by guardrail: {q}")
+                return {
+                    "question": q,
+                    "answer": response_str,
+                    "thought_process": ["Blocked by Guardrail."],
+                    "status": "Blocked by Guardrail",
+                    "sources": []
+                }
+        else:
+            log_info("nemoguardrails not installed; proceeding without guardrails checks.")
         
         log_info(f"Query passed guardrails, checking the cache before hitting the RAG Agent: {q}")
         cached_response = check_cache(q)

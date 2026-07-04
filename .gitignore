@@ -14,5 +14,11 @@ enterprise_eval_env311
 .venv
 _pycache_
 commands.md
-
+terraform.tfvars
 .logfire
+
+# Terraform
+**/.terraform/
+**/*.tfstate
+**/*.tfstate.*
+**/terraform.tfvars

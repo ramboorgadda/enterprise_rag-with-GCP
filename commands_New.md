@@ -310,7 +310,7 @@ terraform plan
 
 # Build Artifact repo first for smooth process
 
-terraform apply -target=google_artifact_registry_repository.repo
+terraform apply -target="google_artifact_registry_repository.repo"
 
 # Apply the changes (type 'yes' when prompted)
 terraform apply
@@ -319,6 +319,38 @@ terraform apply
 
 terraform destroy
 
+```
+
+### 4.1 Troubleshooting Quick Fixes (Run In Order)
+If `terraform apply` fails, run these four checks before retrying.
+
+```powershell
+# TODO 1: Rebuild and push fresh images (after dependency or code changes)
+gcloud builds submit --config cloudbuild.yaml .
+
+# TODO 2: Create Eventarc service identity (one-time setup)
+gcloud beta services identity create \
+    --service=eventarc.googleapis.com \
+    --project=enterprise-rag-497423
+
+# TODO 3: Validate from the correct directory
+# If you are in project root:
+terraform -chdir=terraform validate
+# If you are already inside terraform/:
+terraform validate
+
+# TODO 4: Use a PowerShell-safe target command (quotes required)
+terraform -chdir=terraform apply -target="google_artifact_registry_repository.repo"
+```
+
+Additional notes:
+- If you see `chdir terraform: The system cannot find the file specified`, remove `-chdir=terraform` because you are already in the `terraform/` folder.
+- If you see `Invalid target "google_artifact_registry_repository"`, retype the command with the quoted full address including `.repo`.
+- If Eventarc still reports service-agent permission errors, wait 2-5 minutes for IAM propagation and run `terraform apply` again.
+- If Cloud Run reports container failed to start on port `8080`, check logs and confirm dependencies are present in the image:
+
+```powershell
+gcloud run services logs read enterprise-rag-backend --region us-central1 --limit=200
 ```
 
 ### 5. Final Verification Logic

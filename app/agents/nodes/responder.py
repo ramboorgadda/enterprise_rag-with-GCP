@@ -62,6 +62,13 @@ def generate_node(state: AgentState):
         USER QUESTION:
         "{user_message}"
         """
+    if portkey_client is None:
+        logfire.warning("Portkey client unavailable. Returning fallback response.")
+        return {
+            "final_answer": "I could not generate a response right now because the gateway client is not configured.",
+            "status": "Gateway client unavailable.",
+            "messages": [{"role": "assistant", "content": "I could not generate a response right now because the gateway client is not configured."}],
+        }
     with logfire.span("🧠 Responder Node - Synthesizing Response", query=query, docs_count=len(state.get("documents", []))):
         try:
             response = portkey_client.chat.completions.create(

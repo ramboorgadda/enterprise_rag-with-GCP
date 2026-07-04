@@ -16,6 +16,8 @@ from fastapi import FastAPI, Request, BackgroundTasks
 import tempfile
 
 fastapi = FastAPI()
+# Cloud Run container command expects app.ingestion.processor:app
+app = fastapi
 
 load_dotenv()
 

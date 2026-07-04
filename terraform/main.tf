@@ -24,9 +24,9 @@ data "google_project" "project" {
 
 # 3. Networking (Required for Redis)
 resource "google_compute_network" "rag_vpc" {
-    name                    = "rag-vpc"
+    name                    = "${var.app_name}-vpc"
     auto_create_subnetworks = true
-    depends_on              = [google_project_service.services]
+    depends_on              = [google_project_service.service]
 }
 # 4. Redis Instance (Memorystore)
 resource "google_redis_instance" "cache" {
@@ -39,7 +39,7 @@ resource "google_redis_instance" "cache" {
     redis_version     = "REDIS_6_X"
     display_name      = "RAG Semantic Cache"
 
-    depends_on = [google_project_service.services]
+    depends_on = [google_project_service.service]
 }
 
 # 5. Service Account for Ingestion
@@ -74,23 +74,23 @@ resource "google_project_iam_member" "gcs_pubsub_publishing" {
 }
 
 # 7. Eventarc Service Agent Permissions
-# The internal Eventarc account needs to be able to "Get" buckets to validate them
 resource "google_project_iam_member" "eventarc_service_agent" {
     project = var.project_id
     role    = "roles/eventarc.serviceAgent"
     member  = "serviceAccount:service-${data.google_project.project.number}@gcp-sa-eventarc.iam.gserviceaccount.com"
+    depends_on = [google_project_service.service]
 }
 
 # 8. Storage Buckets
 resource "google_storage_bucket" "raw_data" {
-    name     = "${var.project_id}-rag-raw"
+    name     = "${var.project_id}-rag-raw-1234"
     location = var.region
     uniform_bucket_level_access = true
     force_destroy = true
 }
 
 resource "google_storage_bucket" "processed_data" {
-    name     = "${var.project_id}-rag-processed"
+    name     = "${var.project_id}-rag-processed-1234"
     location = var.region
     uniform_bucket_level_access = true
     force_destroy = true

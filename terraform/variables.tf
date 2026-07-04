@@ -32,6 +32,39 @@ variable "groq_api_key" {
     sensitive   = true
 }
 
+variable "groq_fallback_api_key" {
+    description = "Fallback Groq API Key"
+    type        = string
+    sensitive   = true
+    default     = ""
+}
+
+variable "portkey_api_key" {
+    description = "Portkey API Key for gateway routing"
+    type        = string
+    sensitive   = true
+    default     = ""
+}
+
+variable "portkey_config_id" {
+    description = "Portkey config ID used by the LLM gateway"
+    type        = string
+    default     = ""
+}
+
+variable "nvidia_api_key" {
+    description = "NVIDIA API Key for guardrails"
+    type        = string
+    sensitive   = true
+    default     = ""
+}
+
+variable "judge_groq" {
+    description = "Groq model name used by the evals judge"
+    type        = string
+    default     = "llama-3.3-70b-versatile"
+}
+
 variable "db_password" {
     description = "Postgres Password"
     type        = string

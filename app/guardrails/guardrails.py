@@ -6,7 +6,11 @@ import asyncio
 from typing import Optional
 from langchain_groq import ChatGroq
 import nest_asyncio
-from nemoguardrails import RailsConfig, LLMRails
+try:
+  from nemoguardrails import RailsConfig, LLMRails
+except ModuleNotFoundError:
+  RailsConfig = None
+  LLMRails = None
 nest_asyncio.apply()
 from pathlib import Path
 from dotenv import load_dotenv
@@ -19,13 +23,25 @@ load_dotenv(dotenv_path="../.env")
 GROQ_API_KEY   = os.getenv("GROQ_API_KEY")
 NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY")
 
-llm = ChatGroq(api_key=GROQ_API_KEY,
-        model="llama-3.3-70b-versatile",
-        temperature=0)  # Initialize the Groq client
-print("Groq client initialized.")
+llm = None
+try:
+  if GROQ_API_KEY:
+    llm = ChatGroq(
+      api_key=GROQ_API_KEY,
+      model="llama-3.3-70b-versatile",
+      temperature=0,
+    )
+    print("Groq client initialized.")
+  else:
+    print("Groq client not initialized (missing GROQ_API_KEY).")
+except Exception as exc:
+  llm = None
+  print(f"Groq client initialization failed: {exc}")
 
 def chat(rails,message):
     """Send a message through the rails and print input + output."""
+    if rails is None:
+        return {"content": ""}
     print(f"\n{'-'*62}")
     print(f"User : {message}")
     response = rails.generate(messages=[{"role": "user", "content": message}])

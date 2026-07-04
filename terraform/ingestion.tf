@@ -16,6 +16,10 @@
 
         containers {
         image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.app_name}-repo/ingestion:latest"
+
+        ports {
+            container_port = 8080
+        }
         
         volume_mounts {
             name       = "cloudsql"

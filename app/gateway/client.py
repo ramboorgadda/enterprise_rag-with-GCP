@@ -22,10 +22,18 @@ GATEWAY_CONFIG = {
 }
 
 
-portkey_client = Portkey(
-    api_key=settings.PORTKEY_API_KEY,
-    config=GATEWAY_CONFIG
-)
+portkey_client = None
+try:
+    if settings.PORTKEY_API_KEY:
+        portkey_client = Portkey(
+            api_key=settings.PORTKEY_API_KEY,
+            config=GATEWAY_CONFIG,
+        )
+    else:
+        logfire.warning("PORTKEY_API_KEY missing; gateway client disabled.")
+except Exception as exc:
+    portkey_client = None
+    logfire.error(f"Failed to initialize Portkey client: {exc}")
 
 
 def get_langchain_llm(feature: str = "rag") -> ChatOpenAI:
@@ -37,6 +45,9 @@ def get_langchain_llm(feature: str = "rag") -> ChatOpenAI:
     else:
         raise ValueError(f"Unknown feature '{feature}' for LLM retrieval.")
     
+    if not settings.PORTKEY_API_KEY:
+        return None
+
     return ChatOpenAI(
         api_key = settings.PORTKEY_API_KEY,
         base_url = PORTKEY_GATEWAY_URL,
