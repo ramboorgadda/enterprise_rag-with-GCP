@@ -134,6 +134,11 @@ QDRANT_CLUSTER_ENDPOINT="https://03dc70a2-3350-4564-9123-c40cf1abb317.us-east4-0
 LANGSMITH_TRACING=true
 LANGSMITH_ENDPOINT=https://api.smith.langchain.com
 LANGSMITH_PROJECT="entreprise_rag"
+LOCAL_MODE=true
+
+# Leave Cloud SQL unset for local runs; the app falls back to in-memory memory/checkpointing.
+# DB_CONNECTION_NAME=
+# DB_PASS=
 ```
 
 ---
@@ -289,14 +294,7 @@ gcloud projects add-iam-policy-binding dmtxpress \
     --role="roles/pubsub.publisher"
 ```
 
-### 3. Build Microservices (UI, Backend, Ingestion)
-Instead of manual builds, use the new `cloudbuild.yaml` to build all three images at once in the cloud.
-```powershell
-# Submit a multi-service build
-gcloud builds submit --config cloudbuild.yaml .
-```
-
-### 4. Deploy Infrastructure with Terraform
+### 3. Deploy Infrastructure with Terraform
 Navigate to the `terraform/` folder and run these commands to spin up the Database, Redis, VPC, and Cloud Run services automatically.
 ```powershell
 # Navigate to the folder (Manual Step)
@@ -319,6 +317,13 @@ terraform apply
 
 terraform destroy
 
+```
+
+### 4. Build Microservices (UI, Backend, Ingestion, Evals)
+After the Artifact Registry repo exists, use Cloud Build to build and push the service images.
+```powershell
+# Submit a multi-service build
+gcloud builds submit --config cloudbuild.yaml .
 ```
 
 ### 4.1 Troubleshooting Quick Fixes (Run In Order)

@@ -11,8 +11,13 @@ steps:
   - name: 'gcr.io/cloud-builders/docker'
     args: ['build', '-t', 'us-central1-docker.pkg.dev/${PROJECT_ID}/enterprise-rag-repo/ingestion:latest', '-f', 'Docker/ingestion.Dockerfile', '.']
 
+  # 4. Build Evals Image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'us-central1-docker.pkg.dev/${PROJECT_ID}/enterprise-rag-repo/evals:latest', '-f', 'Docker/evals.Dockerfile', '.']
+
 # Push the images to Artifact Registry
 images:
   - 'us-central1-docker.pkg.dev/${PROJECT_ID}/enterprise-rag-repo/backend:latest'
   - 'us-central1-docker.pkg.dev/${PROJECT_ID}/enterprise-rag-repo/ui:latest'
   - 'us-central1-docker.pkg.dev/${PROJECT_ID}/enterprise-rag-repo/ingestion:latest'
+  - 'us-central1-docker.pkg.dev/${PROJECT_ID}/enterprise-rag-repo/evals:latest'

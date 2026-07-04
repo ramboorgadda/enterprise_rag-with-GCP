@@ -239,7 +239,7 @@ resource "google_cloud_run_v2_service" "evals" {
         image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.app_name}-repo/evals:latest"
 
         ports {
-            container_port = 8080
+            container_port = 8501
         }
 
         resources {

@@ -39,9 +39,9 @@ def get_checkpointer():
     and falls back to in-memory checkpointer in Local mode."""
     
     from app.config import settings
-    if settings.LOCAL_MODE:
+    if settings.LOCAL_MODE or not settings.DB_CONNECTION_NAME or not settings.DB_PASS:
         from langgraph.checkpoint.memory import MemorySaver
-        print("⚠️ Running in Local Mode: Using in-memory checkpointer (no persistence).")
+        print("⚠️ Running without Cloud SQL settings: Using in-memory checkpointer (no persistence).")
         return MemorySaver()
     try:
         from langgraph.checkpoint.postgres import PostgresSaver
